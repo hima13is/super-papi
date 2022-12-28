@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:oauth="http://www.mulesoft.org/schema/mule/oauth"
+	xmlns:os="http://www.mulesoft.org/schema/mule/os"
+	xmlns:super-heros-bio-data-sapi="http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi"
+	xmlns:super-heros-movies-data-sapi="http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi/current/mule-super-heros-movies-data-sapi.xsd
+http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi/current/mule-super-heros-bio-data-sapi.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/oauth http://www.mulesoft.org/schema/mule/oauth/current/mule-oauth.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config
+		name="super-ticket-papi-httpListenerConfig">
+		<http:listener-connection
+			host="0.0.0.0"
+			port="${api.port}"
+			protocol="HTTPS"
+			tlsContext="apiTlsContext" />
+	</http:listener-config>
+	<apikit:config
+		name="super-ticket-papi-config"
+		api="resource::2ba64b68-3e3f-432e-9be9-7bc2481a48cf:super-ticket-papi:1.0.0:oas:zip:super-ticket-papi.yaml"
+		outboundHeadersMapName="outboundHeaders"
+		httpStatusVarName="httpStatus" />
+	<api-gateway:autodiscovery
+		apiId="18365501"
+		ignoreBasePath="true"
+		doc:name="API Autodiscovery"
+		doc:id="c2f55b76-9435-4b51-ac17-7bfb7785db1a"
+		flowRef="super-ticket-papi-main" />
+	<tls:context
+		name="apiTlsContext"
+		doc:name="TLS Context"
+		doc:id="d5b3073c-7198-4482-b950-9be4c90f571a">
+		<tls:key-store
+			type="${tls.keystore.type}"
+			path="${tls.keystore.path}"
+			alias="${tls.keystore.alias}"
+			keyPassword="${secure::tls.keystore.keyPassword}"
+			password="${secure::tls.keystore.password}" />
+	</tls:context>
+	<configuration-properties doc:name="Configuration properties" doc:id="6385362f-e2d8-46e4-85f9-df0f1f0ad55e" file="properties.yaml" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="f921dab6-c4b8-47a7-b782-3c54eaf89c5f" file="properties.yaml" key="dontLeakThisKeySecure@7" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	<os:config name="ObjectStore_Config_oauth_access_token" doc:name="ObjectStore Config" doc:id="d672f434-a41e-4a4b-bc81-1c9cf8bd71a2" >
+		<os:connection >
+			<reconnection failsDeployment="true" >
+				<reconnect />
+			</reconnection>
+		</os:connection>
+	</os:config>
+	<os:object-store name="oauthTokenObjectStore" doc:name="Object store" doc:id="ee8746d2-5104-4c34-b16e-a56e77fa5f25" entryTtl="60" entryTtlUnit="HOURS" expirationInterval="60" config-ref="ObjectStore_Config_oauth_access_token" />
+	<http:request-config name="bookingDataByBID" doc:name="HTTP Request configuration" doc:id="bd10a7b5-60df-4184-bc17-76d9b775ac6f" basePath="/booking" >
+		<http:request-connection protocol="HTTPS" host="onlineman477-eval-prod.apigee.net" port="443" >
+			<reconnection failsDeployment="true" >
+				<reconnect />
+			</reconnection>
+			<http:authentication >
+				<oauth:client-credentials-grant-type clientId="KZ25TpHNeppVOmwtKpD6jQAjnq4vrLG1" clientSecret="CYBpVYhSeqSy4GSR" tokenUrl="https://onlineman477-eval-prod.apigee.net/owasp-oauth/token" >
+					<oauth:token-manager objectStore="oauthTokenObjectStore" />
+				</oauth:client-credentials-grant-type>
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<os:object-store name="bioDataObjectStore" doc:name="Object store" doc:id="6d855263-4d59-4017-9a45-b9c3ace1df77" entryTtl="60" />
+	<ee:object-store-caching-strategy name="bioDataCachingStrategy" doc:name="Caching Strategy" doc:id="c8e8b59c-2c89-4191-b5e7-52d275ec2e91" keyGenerationExpression="#[vars.CID]" objectStore="bioDataObjectStore" />
+	<vm:config name="VMConfigShowCancel" doc:name="VM Config" doc:id="246342d0-58cd-43d2-93cb-d47f844b4086" >
+		<vm:connection >
+			<reconnection failsDeployment="true" >
+				<reconnect />
+			</reconnection>
+		</vm:connection>
+		<vm:queues >
+			<vm:queue queueName="cancel-show-notification-q" queueType="PERSISTENT" maxOutstandingMessages="50" />
+			<vm:queue queueName="cancel-show-notification-dlq" queueType="PERSISTENT" maxOutstandingMessages="50" />
+		</vm:queues>
+	</vm:config>
+	<super-heros-bio-data-sapi:config name="Super_Heros_Bio_Data_SAPI_Config" doc:name="Super Heros Bio Data SAPI Config" doc:id="4bcf64f4-126d-4a2c-b7cc-555230084c9e" property_host="super-biodata-sapi-him.us-e2.cloudhub.io" property_port="80" property_protocol="HTTP" property_username="487ccc7371cc4b61aae84849845b324a" property_password="332fDaaeEbf64fc28b26ef1f061af8FB" property_basePath="/api/v1" />
+	<super-heros-movies-data-sapi:config name="Super_Heros_Movies_Data_SAPI_Config" doc:name="Super Heros Movies Data SAPI Config" doc:id="7f19bdee-5430-4bca-8731-a4d117625726" property_host="super-movies-sapi-him.us-e2.cloudhub.io" property_port="80" property_protocol="HTTP" property_username="487ccc7371cc4b61aae84849845b324a" property_password="332fDaaeEbf64fc28b26ef1f061af8FB" property_basePath="/api" />
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="8f497b41-bd55-48b3-813f-f4328488a929" />
+
+
+</mule>
+ 

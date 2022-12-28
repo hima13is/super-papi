@@ -1,0 +1,15 @@
+tls:
+ keystore: 
+      type: "pkcs12"
+      path: "super-tickets-papi.p12"
+      alias: "mule-server"
+      keyPassword: "mulesoft"
+      password: "mulesoft" 
+      
+api:
+ port: "8082"
+ id: "18290068"
+ callback:
+  url: "https://${fullDomain}/api/cancelShow"
+ majorVersion: "v1"
+ 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<import doc:name="Import" doc:id="3411b5c0-1d6f-4347-86d5-80676d869fdd" file="health-library.xml" />
+	<sub-flow name="dependency-liveness-status" doc:id="a4dd05cb-637c-4baf-a9e7-f9f73c6dcb58" >
+		<http:request method="GET" doc:name="Liveness-SuperMovies" doc:id="fc003f5d-e62e-4708-bec3-4fd824a05fe4" url="http://super-movies-sapi-him.us-e2.cloudhub.io/live" responseTimeout="5000">
+			<http:response-validator >
+				<http:success-status-code-validator values="200..399" />
+			</http:response-validator>
+		</http:request>
+		<http:request method="GET" doc:name="Liveness-SuperBiodata" doc:id="6207ee1c-4190-445b-8bcd-fb827c063846" url="http://super-biodata-sapi-him.us-e2.cloudhub.io/live" responseTimeout="5000">
+			<http:response-validator >
+				<http:success-status-code-validator values="200..399" />
+			</http:response-validator>
+		</http:request>
+		<http:request method="GET" doc:name="Liveness-BookingRestAPI" doc:id="b6ccb23d-7fce-4827-a14f-b78d0212b70b" url="https://onlineman477-eval-prod.apigee.net/booking/live" responseTimeout="5000">
+			<http:response-validator >
+				<http:success-status-code-validator values="200..399" />
+			</http:response-validator>
+		</http:request>
+	</sub-flow>
+</mule>

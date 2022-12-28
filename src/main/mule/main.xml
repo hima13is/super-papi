@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:tracing="http://www.mulesoft.org/schema/mule/tracing"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:super-heros-bio-data-sapi="http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi" xmlns:super-heros-movies-data-sapi="http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi http://www.mulesoft.org/schema/mule/super-heros-movies-data-sapi/current/mule-super-heros-movies-data-sapi.xsd
+http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi http://www.mulesoft.org/schema/mule/super-heros-bio-data-sapi/current/mule-super-heros-bio-data-sapi.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/tracing http://www.mulesoft.org/schema/mule/tracing/current/mule-tracing.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+	<flow name="get-biodata-by-cid" doc:id="d9725b22-3695-4fc2-9ce9-1665a676c0ad" >
+		<ee:cache doc:name="Cache" doc:id="51a857f8-a3c8-4221-8004-0018ffb5ae2e" cachingStrategy-ref="bioDataCachingStrategy">
+			<super-heros-bio-data-sapi:get-biodata-by-cid doc:name="Get BioData by CID" doc:id="3aba3ee4-8fee-4416-8da0-dbe99daaab1f" id="#[vars.CID]" config-ref="Super_Heros_Bio_Data_SAPI_Config"/>
+		</ee:cache>
+	</flow>
+	<flow name="get-movies-data-by-cid" doc:id="e838f693-1f60-49e2-9068-815904ac8e72" >
+		<until-successful maxRetries="2" doc:name="Until Successful" doc:id="5cc46f8d-0f97-41e9-9651-f618e365195b" millisBetweenRetries="500">
+			<try doc:name="Try" doc:id="658000ad-e5e3-422c-bee6-52454fb84adb" >
+				<super-heros-movies-data-sapi:fetch-movies-data-using-cid doc:name="Fetch Movies Data using CID" doc:id="9694cb66-58d4-4a7d-94a6-70560a16dd10" id="#[vars.CID]" target="superMovies" config-ref="Super_Heros_Movies_Data_SAPI_Config"/>
+				<error-handler >
+					<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5092fbed-e111-4ee0-90e2-794dd7fcac6b" type="SUPER-HEROS-MOVIES-DATA-SAPI:CONNECTIVITY, SUPER-HEROS-MOVIES-DATA-SAPI:TIMEOUT, SUPER-HEROS-MOVIES-DATA-SAPI:TOO_MANY_REQUESTS">
+						<logger level="INFO" doc:name='"Transient errors"' doc:id="d4d6d789-1005-4886-a293-9c64c03a34f6" message='#["Transient errors"]'/>
+					</on-error-propagate>
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="82b3afc2-d1fe-4d1f-aa93-8e0cac84f13f" type="SUPER-HEROS-MOVIES-DATA-SAPI:FORBIDDEN, SUPER-HEROS-MOVIES-DATA-SAPI:UNAUTHORIZED">
+						<logger level="INFO" doc:name='"Permanent errora"' doc:id="7b3f85d1-ee24-4732-9e51-83d53a1f9e62" message='#["Permanent errora"]'/>
+						<set-variable value='#["Yes"]' doc:name="permanentErrors = Yes" doc:id="ec2c3e97-e8cf-4215-bccf-753e3dc06706" variableName="permanentErrors "/>
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="0ae147b4-9329-4400-968b-cd1f697ed1a4">
+				<when expression='#[vars.permanentErrors == "Yes"]'>
+				<raise-error doc:name="APP:MOVIES_DATA_PERMANENT_ERROR" doc:id="eda9afd2-abcd-4575-8339-421c5097f79d" type="APP:MOVIES_DATA_PERMANENT_ERROR"/>
+			</when>
+			</choice>
+	</flow>
+	<flow name="get-booking-data-by-bid" doc:id="0b708460-3925-4855-8402-7607b5e28efe" >
+		<http:request method="GET" doc:name="Get Booking Data using BID" doc:id="0a20ef03-0e1f-4a34-8d68-07b105134994" config-ref="bookingDataByBID" path="/{bookingID}" target="bookingData">
+			<http:uri-params><![CDATA[#[{
+	bookingID: vars.BID
+}]]]></http:uri-params>
+		</http:request>
+		<choice doc:name="Choice" doc:id="45b12917-5a6f-4475-9c39-919bdb8cc9a2">
+			<when expression="#[%dw 2.0&#10;import first from dw::core::Strings&#10;output application/java&#10;var bookingDataComicValue = vars.bookingData.film.comic first 2&#10;---&#10;vars.CID contains bookingDataComicValue]">
+				<logger level="INFO" doc:name='"Requested CID is from Marvel comic"' doc:id="d01efbb9-502f-4892-85aa-f84dba634882" message='#["Requested CID is from Marvel comic"]' />
+			</when>
+			<otherwise>
+				<raise-error doc:name="Request CID is not from Marvel comic" doc:id="4acb96d6-9a84-4a0c-9f9d-a8c4da11ff73" type="APP:CID_DOESNT_MATCH_COMIC" description="Request CID is not from Marvel comic" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="get-tickets-data-by-id" doc:id="fecfed5a-494c-4484-a4f6-b541dfdeff1e" >
+		<tracing:set-logging-variable doc:name="Set logging variable BID" doc:id="9f065ac7-d990-46d3-9634-0459f905a435" variableName="BID" value="#[vars.BID]"/>
+		<tracing:set-logging-variable doc:name="Set logging variable CID" doc:id="719cf9f1-10f1-44d7-889e-ac5bcba97281" variableName="CID" value="#[vars.CID]"/>
+		<logger level="INFO" doc:name="Log CorrelationId" doc:id="4ac75aa7-152d-4736-beae-517c04dcf592" message='#["************************" ++ "Flow started with correlationId" ++ correlationId ++ "*********************************************************"]'/>
+		<scatter-gather doc:name="Scatter-Gather" doc:id="991fb234-8fb3-4dee-9e1e-2cf59843c719" >
+			<route >
+				<flow-ref doc:name="get-booking-data-by-bid" doc:id="34846c71-9dac-4068-9756-bde242d8b3a7" name="get-booking-data-by-bid" />
+			</route>
+			<route >
+				<flow-ref doc:name="get-movies-data-by-cid" doc:id="5d534eb9-9c6d-4fc7-acef-600f364c7547" name="get-movies-data-by-cid"/>
+			</route>
+			<route >
+				<flow-ref doc:name="get-biodata-by-cid" doc:id="c06297cb-81b1-43ee-8b72-3c7d25484fe4" name="get-biodata-by-cid" target="superBioData"/>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="Transform Message" doc:id="174940f5-0803-4e5c-baf5-c429925d0a31">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	ticket: {
+		booking_id: vars.bookingData.booking_id,
+		film_name: vars.bookingData.film.film_name,
+		cinema_name: ((vars.bookingData.cinema.cinema_name default "") ++ ', ' ++ vars.bookingData.cinema.city) ++ ', ' ++ vars.bookingData.cinema.country,
+		screen_name: vars.bookingData.cinema.screen_name,
+		seats: vars.bookingData.cinema.seats,
+		imdb_rating: vars.bookingData.film.imdb_rating,
+		language: vars.bookingData.film.language,
+		date_time: (vars.bookingData.film.showing[0].date_time as DateTime) as String {format: "E, dd MMM, yyyy | hh:mm a, ZZZZ"}
+	},
+	character: {
+		id: vars.superBioData.id,
+		name: vars.superBioData.name,
+		birthplace: vars.superBioData.birthplace,
+		publisher: vars.superBioData.publisher,
+		movies: vars.superMovies.movies map ( superMovies , indexOfMovie ) -> {
+			name: superMovies.name,
+			year: superMovies.year
+		}
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="096a418e-e25a-4a07-b6b6-f28b57f43003" type="MULE:COMPOSITE_ROUTING">
+				<set-variable value="#[output application/json&#10;---&#10;error.errorMessage.payload.failures pluck($$)]" doc:name="failedRoutIndex" doc:id="4ff46c1e-c026-48ba-bafa-540f7908bb0c" variableName="failedRoutIndex"/>
+				<set-variable value="#[output application/json &#10;---&#10;error.errorMessage.results pluck($$)]" doc:name="successRouteIndex" doc:id="cec15ccd-9fab-44f6-ba2c-26468ccf7d86" variableName="successRouteIndex"/>
+				<foreach doc:name="For Each" doc:id="2668c123-cbba-4131-be5e-2e3988fceb63" collection="#[vars.successRouteIndex]">
+					<choice doc:name="Choice" doc:id="dd75e9ec-d200-45d2-94e3-51f629a5eb4e">
+					<when expression="#[payload == '0']">
+						<logger level="INFO" doc:name='"Compensataion logic for booking service"' doc:id="b9c7a703-f0c5-43d0-9e25-f5dfdd7d55ad" message='#["Compensataion logic for booking service"]' />
+					</when>
+					<when expression="#[payload == '1']">
+						<logger level="INFO" doc:name='"Compenatation logic for biodata service"' doc:id="67510bae-8925-445f-9ed3-b51804f34f54" message='#["Compenatation logic for biodata service"]' />
+					</when>
+					<when expression="#[payload == '2']">
+						<logger level="INFO" doc:name='"Compensata logic for movies service"' doc:id="7a4ebe74-aae5-43a5-ae1e-06b19659c9f8" message='#["Compensata logic for movies service"]' />
+					</when>
+				</choice>
+				</foreach>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="cancel-show-notificataions" doc:id="819569e0-e523-43a5-94a1-af5022d7e7d1" >
+		<http:listener doc:name="POST:/api/cancelShow" doc:id="47a604b1-43d5-4d0e-b8d9-0ab6f426b6ed" config-ref="super-ticket-papi-httpListenerConfig" path="/api/cancelShow" allowedMethods="POST">
+			<http:response statusCode="202" >
+				<http:body ><![CDATA[#["OK"]]]></http:body>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatusCode]" >
+				<http:body ><![CDATA[#[payload]]]></http:body>
+			</http:error-response>
+		
+</http:listener>
+		<validation:all doc:name="All" doc:id="f7a451ef-e09e-4e93-9ad5-1897647aad42" >
+			<validation:is-not-null doc:name="Payload Is not null" doc:id="5c57e27d-0c39-451a-bfff-bb4ce3043a94" config-ref="Validation_Config" value="#[payload]" message='#["Input payload is null"]'/>
+			<validation:is-not-blank-string doc:name="Content type is not blank " doc:id="3123475a-6436-4b95-9a09-a23c8459b67e" config-ref="Validation_Config" value='#[attributes.headers."content-type"]' message='#["Content type is blank"]'/>
+			<validation:is-true doc:name="Content-type is JSON" doc:id="ab3e202d-0551-43e7-b299-7f0cb5a78875" config-ref="Validation_Config" expression='#[attributes.headers."content-type" == "application/json"]' message='#["Input content type is not json"]'/>
+		</validation:all>
+		<json:validate-schema doc:name="Validate schema Json" doc:id="fd595121-0d49-4c26-b355-58f699b76e43" schema="Schemas\CancelShowSchema.json"/>
+		<vm:publish doc:name="cancel-show-vm" doc:id="06276f09-7993-4764-a528-32452d360450" config-ref="VMConfigShowCancel" sendCorrelationId="ALWAYS" queueName="cancel-show-notification-q"/>
+		<logger level="INFO" doc:name='"Show cancel"' doc:id="f11cbc5b-d2fb-4019-b2d5-0304cab45c9a" message='#["Show cancel notifications"]'/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bce7116e-cd26-4ba8-aa24-24d94cdaef8b" type=" VALIDATION:MULTIPLE, JSON:SCHEMA_NOT_HONOURED">
+				<set-variable value="#[400]" doc:name="httpStatusCode" doc:id="a2591c80-ab1a-4157-a01e-e9da230096e9" variableName="httpStatusCode"/>
+				<ee:transform doc:name="Transform Message" doc:id="716a973f-a32e-4db0-9679-00315b5f2538" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Invalid content",
+	"error": error.description
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	
+</flow>
+	<flow name="mainFlow" doc:id="03371d44-93d9-4939-97fc-67461057c715" >
+		<vm:listener doc:name="process-show-cancel-notification" doc:id="7d2c8836-0505-46dd-ae7f-5ee12912e4b1" config-ref="VMConfigShowCancel" queueName="cancel-show-notification-q" transactionalAction="ALWAYS_BEGIN">
+			<redelivery-policy maxRedeliveryCount="2" idExpression="#[correlationId]" useSecureHash="false" />
+		</vm:listener>
+		<ee:transform doc:name="Transform Message" doc:id="c32c125b-a2e2-47cf-9364-5221327ba512" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	bid:payload.cancelShowNotifications.booking_id,
+	mobile:payload.cancelShowNotifications.user_mobile,
+	proccessAt: now() >> "IST"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="8a105398-6230-46fb-ab0e-5a39454e98a0" message='#["Notifications Received"]'/>
+		<error-handler >
+			<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="2b581345-9d9c-447f-8ca6-e98d9dd00367" type="MULE:REDELIVERY_EXHAUSTED">
+				<vm:publish doc:name="Publish to Dead Letter Queue" doc:id="e0b7378c-dcea-455a-a44a-ece37f9046c9" config-ref="VMConfigShowCancel" queueName="cancel-show-notification-dlq" sendCorrelationId="ALWAYS">
+					<reconnect />
+				</vm:publish>
+			</on-error-continue>
+		</error-handler>
+	</flow>
+	<flow name="process-cancel-show-notification-dlq" doc:id="81131c4f-9e0b-489e-83fb-d1a6d7676dba" >
+		<vm:listener queueName="cancel-show-notification-dlq" doc:name="Listener" doc:id="c1422695-ba2f-4891-9949-2b182dc67463" config-ref="VMConfigShowCancel"/>
+		<logger level="INFO" doc:name="Logger" doc:id="87b40a1b-3d66-4d46-a858-e21de993c572" message='#["Recevied messages in DLW"]'/>
+	</flow>
+	<flow name="register-callback-external-service" doc:id="c2239ac3-060a-434a-bcc4-fe990464c2f0" >
+		<http:listener doc:name="POST:/api/registerCallback" doc:id="e229edc4-b7f5-435c-9cda-49e62ab07f33" config-ref="super-ticket-papi-httpListenerConfig" path="/api/registerCallback" allowedMethods="POST"/>
+		<http:request method="POST" doc:name="Request" doc:id="30e35bed-fb6b-4dfd-bacf-79fbba429ca6" url="https://onlineman477-eval-prod.apigee.net/booking/register">
+			<http:body ><![CDATA[#[output application/json
+---
+{
+	"callBackURL": p("api.callBack.url")
+}]]]></http:body>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="a49c48d0-76b3-42e4-9907-cb10cc6d82d0" message='#["Callback url registered successfully"]'/>
+	</flow>
+</mule>
